@@ -1,0 +1,7 @@
+name: groklike-feel
+version: "0.1.0"
+description: >-
+  Grok-like conversational feel for Hermes. Voice: always-on concise replies.
+  Flow preview: detailed Thought panels tucked away behind a clean-chat toggle.
+provides_hooks:
+  - pre_llm_call
