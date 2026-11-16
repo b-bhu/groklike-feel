@@ -3,9 +3,10 @@ import { atom, host, STATUSBAR_AREAS, THEMES_AREA, TITLEBAR_AREAS, useValue } fr
 
 /** Hide the transcript's internal reasoning presentation, not the model's work. */
 const CLEAN_CHAT_KEY = 'local.cleanChat'
-const TEST_PROFILE = 'grokfeel-test'
+const GATED_PROFILES = ['grokfeel-test', 'ui-ux']
 const profileState = host.state.focusedSessionProfile || host.state.profile
 const busyState = host.state.busy
+const isProfileOn = () => GATED_PROFILES.includes(profileState.get())
 
 /**
  * GroklikeFeel theme: the Grok app look, rebuilt from the extracted tokens
@@ -126,7 +127,7 @@ function FlowChip({ label }) {
   const text = useValue(label)
   const busy = useValue(busyState)
   const profile = useValue(profileState)
-  if (profile !== TEST_PROFILE || !busy || !text) return null
+  if (!GATED_PROFILES.includes(profile) || !busy || !text) return null
   return createElement(
     'span',
     { className: 'groklike-feel-chip', role: 'status', 'aria-live': 'polite' },
@@ -138,7 +139,7 @@ function CleanChatControl({ hidden, onToggle }) {
   const profile = useValue(profileState)
   const [clean, setClean] = useState(hidden.get())
   useEffect(() => hidden.subscribe(setClean), [hidden])
-  if (profile !== TEST_PROFILE) return null
+  if (!GATED_PROFILES.includes(profile)) return null
   return createElement(
     'button',
     {
@@ -219,7 +220,7 @@ export default {
     document.head.append(style)
 
     function apply() {
-      const active = profileState.get() === TEST_PROFILE && hidden.get()
+      const active = GATED_PROFILES.includes(profileState.get()) && hidden.get()
       document.documentElement.classList.toggle('groklike-feel-clean', active)
     }
 

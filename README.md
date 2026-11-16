@@ -3,8 +3,8 @@
 A Hermes plugin that gives agents a Grok-like conversational feel.
 
 - **Voice.** Injects a concise conversational voice on every `pre_llm_call`: answer first, short lines, acknowledgment only for longer jobs, no unsolicited summaries or closers, no em dashes.
-- **Flow (desktop).** Tucks detailed Thought panels away behind a clean-chat toggle, and adds a gerund status chip ("thinking", "writing", "running a command") in the status bar while a turn is in flight. Both are gated to the `grokfeel-test` profile.
-- **Look (desktop).** Ships a `GroklikeFeel` theme built from the Grok app's extracted design tokens (graphite chrome, ink-on-dark, blue accent, tight tracking). Pick it in Settings > Appearance; assign it per profile to scope it to `grokfeel-test`.
+- **Flow (desktop).** Tucks detailed Thought panels away behind a clean-chat toggle, and adds a gerund status chip ("thinking", "writing", "running a command") in the status bar while a turn is in flight. Both are gated to the `grokfeel-test` and `ui-ux` profiles.
+- **Look (desktop).** Ships a `GroklikeFeel` theme built from the Grok app's extracted design tokens (graphite chrome, ink-on-dark, blue accent, tight tracking). Pick it in Settings > Appearance; assign it per profile to scope it (currently `grokfeel-test`, `ui-ux`).
 
 ## Layout
 
