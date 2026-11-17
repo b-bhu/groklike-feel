@@ -1,2 +1,4 @@
 .DS_Store
 hermes-docs-full.txt
+__pycache__/
+*.pyc
