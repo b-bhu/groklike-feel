@@ -123,9 +123,9 @@ function toolLabel(name, args) {
   return label.length > 48 ? `${label.slice(0, 47)}…` : label
 }
 
-function FlowChip({ label }) {
+function FlowChip({ label, tone }) {
   const text = useValue(label)
-  const tone = useValue(chipTone)
+  const chipTone = useValue(tone)
   const busy = useValue(busyState)
   const profile = useValue(profileState)
   if (!GATED_PROFILES.includes(profile) || !busy || !text) return null
@@ -288,7 +288,7 @@ export default {
       id: 'flow-chip',
       area: STATUSBAR_AREAS.right,
       order: 45,
-      render: () => createElement(FlowChip, { label: flowLabel }),
+      render: () => createElement(FlowChip, { label: flowLabel, tone: chipTone }),
     })
 
     /** Composer underside: Stop while busy, Continue after an interrupt. */
