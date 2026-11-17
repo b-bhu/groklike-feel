@@ -81,6 +81,9 @@ const GROK_THEME = {
   customCSS: `
     strong, b { font-weight: 500; }
     :not(pre) > code { border-radius: 0; }
+    button, [role='button'] {
+      transition: background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
+    }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 999px; }
     ::-webkit-scrollbar-track { background: transparent; }
