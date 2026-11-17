@@ -1,12 +1,9 @@
-import { createElement, useEffect, useState } from 'react'
-import { atom, host, COMPOSER_AREAS, STATUSBAR_AREAS, THEMES_AREA, TITLEBAR_AREAS, useValue } from '@hermes/plugin-sdk'
+import { createElement } from 'react'
+import { atom, host, COMPOSER_AREAS, STATUSBAR_AREAS, THEMES_AREA, useValue } from '@hermes/plugin-sdk'
 
-/** Hide the transcript's internal reasoning presentation, not the model's work. */
-const CLEAN_CHAT_KEY = 'local.cleanChat'
 const GATED_PROFILES = ['grokfeel-test', 'ui-ux']
 const profileState = host.state.focusedSessionProfile || host.state.profile
 const busyState = host.state.busy
-const isProfileOn = () => GATED_PROFILES.includes(profileState.get())
 
 /**
  * GroklikeFeel theme: the Grok app look, rebuilt from the extracted tokens
@@ -176,65 +173,19 @@ function FlowPill({ paused, onInterrupt, onContinue }) {
   return null
 }
 
-function CleanChatControl({ hidden, onToggle }) {
-  const profile = useValue(profileState)
-  const [clean, setClean] = useState(hidden.get())
-  useEffect(() => hidden.subscribe(setClean), [hidden])
-  if (!GATED_PROFILES.includes(profile)) return null
-  return createElement(
-    'button',
-    {
-      type: 'button',
-      className: 'groklike-feel-control',
-      title: clean ? 'Show detailed reasoning in chats' : 'Hide detailed reasoning in chats',
-      'aria-label': clean ? 'Show thoughts' : 'Clean chat',
-      'aria-pressed': clean,
-      onClick: onToggle,
-    },
-    clean ? 'Show thoughts' : 'Clean chat',
-  )
-}
-
 export default {
   id: 'groklike-feel',
   name: 'GroklikeFeel',
-  description: 'A calm transcript: keep answers and status visible, with detailed thoughts tucked away. Ships the GroklikeFeel theme (Grok app look) in Settings > Appearance.',
+  description: 'Voice, Habit, a shimmering status chip, Stop/Continue pills under the composer, and the GroklikeFeel theme (Grok app look) in Settings > Appearance.',
   defaultEnabled: true,
 
   register(ctx) {
-    const hidden = atom(ctx.storage.get(CLEAN_CHAT_KEY, true) !== false)
     const flowLabel = atom(null)
     const chipTone = atom('working')
     const paused = atom(false)
 
     const style = document.createElement('style')
     style.textContent = `
-      html.groklike-feel-clean [data-slot="aui_thinking-disclosure"],
-      html.groklike-feel-clean [data-slot="message-reasoning"],
-      html.groklike-feel-clean [data-slot="message-reasoning-streaming"] {
-        display: none;
-      }
-      .groklike-feel-control {
-        appearance: none;
-        border: 0;
-        border-radius: 6px;
-        background: transparent;
-        color: var(--muted-foreground);
-        cursor: pointer;
-        font: inherit;
-        font-size: 11px;
-        line-height: 24px;
-        padding: 0 8px;
-        -webkit-app-region: no-drag;
-      }
-      .groklike-feel-control:hover {
-        color: var(--foreground);
-        background: color-mix(in srgb, var(--foreground) 8%, transparent);
-      }
-      .groklike-feel-control:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-      }
       .groklike-feel-chip {
         align-items: center;
         color: var(--muted-foreground);
@@ -326,29 +277,6 @@ export default {
     `
     document.head.append(style)
 
-    function apply() {
-      const active = GATED_PROFILES.includes(profileState.get()) && hidden.get()
-      document.documentElement.classList.toggle('groklike-feel-clean', active)
-    }
-
-    apply()
-    const unsubscribeHidden = hidden.subscribe(apply)
-    const unsubscribeProfile = profileState.subscribe(apply)
-
-    ctx.register({
-      id: 'clean-chat',
-      area: TITLEBAR_AREAS.left,
-      order: 50,
-      render: () => createElement(CleanChatControl, {
-        hidden,
-        onToggle: () => {
-          const next = !hidden.get()
-          hidden.set(next)
-          ctx.storage.set(CLEAN_CHAT_KEY, next)
-        },
-      }),
-    })
-
     /** Theme contribution: official THEMES_AREA family B data, picker-gated. */
     ctx.register({
       id: 'groklike-feel-theme',
@@ -419,10 +347,7 @@ export default {
 
     ctx.onDispose(() => {
       for (const unsubscribe of subscriptions) unsubscribe()
-      unsubscribeHidden()
-      unsubscribeProfile()
       style.remove()
-      document.documentElement.classList.remove('groklike-feel-clean')
     })
   },
 }
