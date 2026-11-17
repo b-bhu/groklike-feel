@@ -1,5 +1,5 @@
 import { createElement, useEffect, useState } from 'react'
-import { atom, host, STATUSBAR_AREAS, THEMES_AREA, TITLEBAR_AREAS, useValue } from '@hermes/plugin-sdk'
+import { atom, host, COMPOSER_AREAS, STATUSBAR_AREAS, THEMES_AREA, TITLEBAR_AREAS, useValue } from '@hermes/plugin-sdk'
 
 /** Hide the transcript's internal reasoning presentation, not the model's work. */
 const CLEAN_CHAT_KEY = 'local.cleanChat'
@@ -125,14 +125,52 @@ function toolLabel(name, args) {
 
 function FlowChip({ label }) {
   const text = useValue(label)
+  const tone = useValue(chipTone)
   const busy = useValue(busyState)
   const profile = useValue(profileState)
   if (!GATED_PROFILES.includes(profile) || !busy || !text) return null
   return createElement(
     'span',
-    { className: 'groklike-feel-chip', role: 'status', 'aria-live': 'polite' },
-    text,
+    {
+      className: 'groklike-feel-chip',
+      'data-tone': tone,
+      role: 'status',
+      'aria-live': 'polite',
+    },
+    createElement('span', { className: 'groklike-feel-chip-text' }, text),
   )
+}
+
+/**
+ * Composer underside pills: Stop while the focused chat works, Continue after
+ * an interrupt. Stop is the same verb the app's own Stop button sends
+ * (session.interrupt over host.request, fail closed); Continue resubmits
+ * "continue" through the app's composer submit bus. Both are profile-gated.
+ */
+function FlowPill({ paused, onInterrupt, onContinue }) {
+  const busy = useValue(busyState)
+  const profile = useValue(profileState)
+  const pausedOn = useValue(paused)
+
+  if (!GATED_PROFILES.includes(profile)) return null
+
+  if (busy) {
+    return createElement(
+      'button',
+      { type: 'button', className: 'groklike-feel-pill', onClick: onInterrupt },
+      'Stop',
+    )
+  }
+
+  if (pausedOn) {
+    return createElement(
+      'button',
+      { type: 'button', className: 'groklike-feel-pill groklike-feel-pill-continue', onClick: onContinue },
+      'Continue',
+    )
+  }
+
+  return null
 }
 
 function CleanChatControl({ hidden, onToggle }) {
@@ -163,6 +201,8 @@ export default {
   register(ctx) {
     const hidden = atom(ctx.storage.get(CLEAN_CHAT_KEY, true) !== false)
     const flowLabel = atom(null)
+    const chipTone = atom('working')
+    const paused = atom(false)
 
     const style = document.createElement('style')
     style.textContent = `
@@ -213,6 +253,70 @@ export default {
         height: 6px;
         width: 6px;
       }
+      .groklike-feel-chip[data-tone='error']::before {
+        background: #e34671;
+      }
+      .groklike-feel-chip-text {
+        animation: groklike-feel-shimmer 1.4s linear infinite;
+        background: linear-gradient(
+          90deg,
+          rgba(240, 240, 240, 0.55) 0%,
+          #f0f0f0 50%,
+          rgba(240, 240, 240, 0.55) 100%
+        );
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .groklike-feel-chip[data-tone='error'] .groklike-feel-chip-text {
+        animation-duration: 2.2s;
+        background: linear-gradient(
+          90deg,
+          rgba(227, 70, 113, 0.55) 0%,
+          #e34671 50%,
+          rgba(227, 70, 113, 0.55) 100%
+        );
+        background-clip: text;
+        -webkit-background-clip: text;
+      }
+      @keyframes groklike-feel-shimmer {
+        from { background-position: 200% 0; }
+        to { background-position: -200% 0; }
+      }
+      .groklike-feel-pill {
+        -webkit-app-region: no-drag;
+        appearance: none;
+        background: color-mix(in srgb, var(--foreground) 7%, transparent);
+        border: 0;
+        border-radius: 999px;
+        color: var(--foreground);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 4px 14px;
+        transition: background 140ms ease, color 140ms ease, transform 100ms ease;
+      }
+      .groklike-feel-pill:hover {
+        background: color-mix(in srgb, var(--foreground) 14%, transparent);
+      }
+      .groklike-feel-pill:active {
+        transform: scale(0.97);
+      }
+      .groklike-feel-pill:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .groklike-feel-pill-continue {
+        background: var(--accent);
+        color: var(--primary-foreground);
+      }
+      .groklike-feel-pill-continue:hover {
+        background: color-mix(in srgb, var(--accent) 86%, var(--foreground));
+      }
       @keyframes groklike-feel-pulse {
         50% { opacity: 0.35; transform: scale(0.8); }
       }
@@ -256,10 +360,36 @@ export default {
       render: () => createElement(FlowChip, { label: flowLabel }),
     })
 
+    /** Composer underside: Stop while busy, Continue after an interrupt. */
+    ctx.register({
+      id: 'flow-pill',
+      area: COMPOSER_AREAS.underside,
+      order: 20,
+      render: () =>
+        createElement(FlowPill, {
+          paused,
+          onInterrupt: () => {
+            paused.set(true)
+            host
+              .request('session.interrupt', { session_id: host.state.activeSessionId.get() })
+              .catch(() => {})
+          },
+          onContinue: () => {
+            if (host.composer.submit(null, 'continue')) {
+              paused.set(false)
+            }
+          },
+        }),
+    })
+
     const setFlow = text => flowLabel.set(text)
     const onEvent = ctx.onEvent.bind(ctx)
     const subscriptions = [
-      onEvent('message.start', () => setFlow('thinking')),
+      onEvent('message.start', () => {
+        setFlow('thinking')
+        chipTone.set('working')
+        paused.set(false)
+      }),
       onEvent('reasoning.delta', () => setFlow('thinking')),
       onEvent('thinking.delta', () => setFlow('thinking')),
       onEvent('tool.start', event => {
@@ -273,8 +403,15 @@ export default {
         if (payload.kind === 'compacting') setFlow('condensing the thread')
       }),
       onEvent('message.complete', () => setFlow(null)),
-      onEvent('error', () => setFlow(null)),
-      onEvent('session.reclaimed', () => setFlow(null)),
+      onEvent('error', () => {
+        setFlow(null)
+        chipTone.set('error')
+        paused.set(true)
+      }),
+      onEvent('session.reclaimed', () => {
+        setFlow(null)
+        paused.set(false)
+      }),
     ]
 
     ctx.onDispose(() => {
